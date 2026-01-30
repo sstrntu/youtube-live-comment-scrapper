@@ -514,7 +514,7 @@ export default function Home() {
                 <div className="text-xs text-gray-500 dark:text-gray-400">Live & VOD replays (fragile)</div>
               </div>
             </label>
-            <label className="flex items-center gap-3 p-3 rounded-lg border-2 border-green-500 dark:border-green-600 cursor-pointer hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors bg-green-50/50 dark:bg-green-900/10">
+            <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-zinc-600 cursor-pointer hover:bg-gray-50 dark:hover:bg-zinc-700/50 transition-colors">
               <input
                 type="radio"
                 value="api"
@@ -524,7 +524,7 @@ export default function Home() {
                 className="w-4 h-4"
               />
               <div>
-                <div className="font-medium text-sm text-green-700 dark:text-green-400">YouTube Data API ✓</div>
+                <div className="font-medium text-sm">YouTube Data API</div>
                 <div className="text-xs text-gray-500 dark:text-gray-400">Live only, stable & reliable</div>
               </div>
             </label>
