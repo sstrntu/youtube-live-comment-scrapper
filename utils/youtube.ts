@@ -13,6 +13,14 @@ export interface ChatMessage {
   type?: 'text' | 'paid' | 'membership' | 'sticker';
   amount?: string;
   source?: 'youtubei' | 'api';
+
+  // NEW FIELDS for advanced analytics
+  badges?: string[];  // ['moderator', 'member', 'verified', 'owner']
+  authorChannelId?: string;  // Unique channel ID for the author
+  isHost?: boolean;  // Flagged if identified as host
+  containsQuestion?: boolean;  // Auto-detected question
+  mentionedUsers?: string[];  // @mentioned usernames
+  detectedTopics?: string[];  // Keywords/themes (cached from analysis)
 }
 
 export interface InsightData {
@@ -25,6 +33,92 @@ export interface InsightData {
   averageMessageLength: number;
   timeRange: { firstMessage: string; lastMessage: string; durationMinutes: number };
   peakActivity: { timestamp: string; messagesPerMinute: number };
+}
+
+// Advanced Engagement Analytics Interfaces
+
+export interface HostQuestion {
+  messageId: string;
+  author: string;
+  question: string;
+  timestamp: string;
+  answers: Answer[];
+  wasAnswered: boolean;
+}
+
+export interface Answer {
+  messageId: string;
+  author: string;
+  message: string;
+  timestamp: string;
+  responseTimeSeconds: number;
+}
+
+export interface QuestionAnswerer {
+  author: string;
+  profileImageUrl: string;
+  questionsAnswered: number;
+  averageResponseTime: number;
+  helpfulnessScore: number;
+}
+
+export interface TopicCluster {
+  topic: string;
+  keywords: string[];
+  messageCount: number;
+  topContributors: string[];
+  timeRange: { start: string; end: string };
+}
+
+export interface KeywordTrend {
+  keyword: string;
+  frequency: number;
+  trend: 'rising' | 'stable' | 'declining';
+}
+
+export interface CommunityMember {
+  author: string;
+  profileImageUrl: string;
+  engagementScore: number;
+  metrics: {
+    totalMessages: number;
+    messagesPerHour: number;
+    questionsAnswered: number;
+    avgResponseTime: number;
+    conversationCount: number;
+  };
+  badges?: string[];
+}
+
+export interface ConversationThread {
+  threadId: string;
+  participants: string[];
+  messageCount: number;
+  startTime: string;
+  endTime: string;
+  messages: string[];  // Message IDs in thread
+  topic?: string;
+}
+
+export interface EngagementAnalysis {
+  // Host Q&A Analysis
+  hostQuestions: HostQuestion[];
+  questionAnswerers: QuestionAnswerer[];
+
+  // Topic Analysis
+  topicClusters: TopicCluster[];
+  trendingKeywords: KeywordTrend[];
+
+  // Community Engagement
+  activeCommunityMembers: CommunityMember[];
+  conversationThreads: ConversationThread[];
+
+  // Summary Stats
+  totalQuestions: number;
+  answeredQuestions: number;
+  averageResponseTime: number;
+  topTopics: string[];
+  hostName?: string;
 }
 
 export const getLiveChatId = async (apiKey: string, videoId: string): Promise<string> => {

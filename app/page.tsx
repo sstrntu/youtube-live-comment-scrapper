@@ -2,10 +2,12 @@
 
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
-import { ChatMessage, getVideoId, InsightData } from "../utils/youtube";
+import { ChatMessage, getVideoId, InsightData, EngagementAnalysis } from "../utils/youtube";
 import { exportToCSV, exportToJSON } from "../utils/export";
 import { calculateInsights } from "../utils/analytics";
+import { analyzeEngagement } from "../utils/engagementAnalytics";
 import InsightsPanel from "./components/InsightsPanel";
+import EngagementPanel from "./components/EngagementPanel";
 
 export default function Home() {
   const [videoUrl, setVideoUrl] = useState("");
@@ -21,6 +23,15 @@ export default function Home() {
   const [batchAutoStopMinutes, setBatchAutoStopMinutes] = useState<number | string>(5); // minutes after last message
   const [lastMessageTimeRef, setLastMessageTime] = useState<number>(0);
   const [estimatedQuotaUsage, setEstimatedQuotaUsage] = useState(0);
+
+  // Engagement analysis state
+  const [engagementAnalysis, setEngagementAnalysis] = useState<EngagementAnalysis | null>(null);
+  const [showEngagementPanel, setShowEngagementPanel] = useState(false);
+  const [hostName, setHostName] = useState("");
+  const [useAITopics, setUseAITopics] = useState(false);
+  const [openAIKey, setOpenAIKey] = useState("");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const apiEventSourceRef = useRef<EventSource | null>(null);
@@ -386,6 +397,43 @@ export default function Home() {
     setMessages([]);
     setApiMessages([]);
     setInsights(null);
+    setEngagementAnalysis(null);
+    setShowEngagementPanel(false);
+  };
+
+  const handleAnalyzeEngagement = async () => {
+    setAnalysisError(null);
+    setIsAnalyzing(true);
+
+    try {
+      const allMessages = scrapingMethod === 'both' ? [...messages, ...apiMessages] : messages;
+
+      if (allMessages.length === 0) {
+        setAnalysisError("No messages to analyze. Start scraping first.");
+        setIsAnalyzing(false);
+        return;
+      }
+
+      if (allMessages.length < 50) {
+        setAnalysisError("Need at least 50 messages for meaningful analysis.");
+        setIsAnalyzing(false);
+        return;
+      }
+
+      const analysis = analyzeEngagement(
+        allMessages,
+        hostName || undefined,
+        useAITopics && openAIKey ? true : undefined
+      );
+
+      setEngagementAnalysis(analysis);
+      setShowEngagementPanel(true);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Analysis failed';
+      setAnalysisError(errorMessage);
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   // Cleanup on unmount
@@ -589,6 +637,91 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Engagement Analysis Settings */}
+        <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-lg p-6 space-y-4 border border-gray-100 dark:border-zinc-700">
+          <h2 className="text-lg font-semibold">Community Engagement Analysis</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Advanced analytics to identify question answerers, trending topics, active members, and conversation threads.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label htmlFor="hostName" className="block text-sm font-medium">
+                Host Name (Optional)
+              </label>
+              <input
+                id="hostName"
+                type="text"
+                value={hostName}
+                onChange={(e) => setHostName(e.target.value)}
+                placeholder="e.g., Channel Owner"
+                disabled={isAnalyzing}
+                className="w-full px-3 py-2 rounded border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-sm focus:ring-2 focus:ring-orange-500 outline-none transition-all disabled:opacity-50"
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Leave empty for automatic detection by badges or message frequency
+              </p>
+            </div>
+
+            <div className="flex items-end">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={useAITopics}
+                  onChange={(e) => setUseAITopics(e.target.checked)}
+                  disabled={isAnalyzing}
+                  className="w-4 h-4 cursor-pointer"
+                />
+                <span className="text-sm font-medium">Use AI Topic Analysis</span>
+              </label>
+            </div>
+          </div>
+
+          {useAITopics && (
+            <div className="space-y-2">
+              <label htmlFor="openAIKey" className="block text-sm font-medium">
+                OpenAI API Key
+              </label>
+              <input
+                id="openAIKey"
+                type="password"
+                value={openAIKey}
+                onChange={(e) => setOpenAIKey(e.target.value)}
+                placeholder="sk-..."
+                disabled={isAnalyzing}
+                className="w-full px-3 py-2 rounded border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-sm focus:ring-2 focus:ring-orange-500 outline-none transition-all disabled:opacity-50"
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Warning: AI analysis will incur API costs. Leave empty to use keyword analysis only.
+              </p>
+            </div>
+          )}
+
+          {analysisError && (
+            <div className="p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg text-sm">
+              {analysisError}
+            </div>
+          )}
+
+          <button
+            onClick={handleAnalyzeEngagement}
+            disabled={
+              isAnalyzing ||
+              (scrapingMethod === 'both' ? messages.length + apiMessages.length : messages.length) < 50
+            }
+            className="w-full px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400 text-white font-medium rounded-lg transition-colors disabled:cursor-not-allowed"
+          >
+            {isAnalyzing ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="animate-spin inline-flex h-4 w-4 rounded-full border-2 border-white border-t-transparent"></span>
+                Analyzing...
+              </span>
+            ) : (
+              "Analyze Engagement"
+            )}
+          </button>
+        </div>
+
         {/* Stats & Tools */}
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
@@ -611,6 +744,13 @@ export default function Home() {
                 {showInsights ? 'Hide' : 'Show'} Insights
               </button>
               <button
+                onClick={() => setShowEngagementPanel(!showEngagementPanel)}
+                disabled={engagementAnalysis === null}
+                className="px-4 py-2 text-sm font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 dark:bg-orange-900/20 dark:text-orange-400 dark:hover:bg-orange-900/30 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {showEngagementPanel ? 'Hide' : 'Show'} Engagement
+              </button>
+              <button
                 onClick={() => exportToCSV(scrapingMethod === 'both' ? [...messages, ...apiMessages] : messages)}
                 disabled={messages.length === 0 && apiMessages.length === 0}
                 className="px-4 py-2 text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/30 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -630,6 +770,14 @@ export default function Home() {
           {/* Insights Panel */}
           {showInsights && insights && (
             <InsightsPanel insights={insights} />
+          )}
+
+          {/* Engagement Analysis Panel */}
+          {showEngagementPanel && engagementAnalysis && (
+            <EngagementPanel
+              analysis={engagementAnalysis}
+              messages={scrapingMethod === 'both' ? [...messages, ...apiMessages] : messages}
+            />
           )}
         </div>
 
