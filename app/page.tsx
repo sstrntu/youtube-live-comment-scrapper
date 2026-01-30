@@ -798,38 +798,6 @@ export default function Home() {
           )}
         </div>
 
-        {/* API Cost Info */}
-        <div className="bg-green-50 dark:bg-green-900/20 rounded-xl shadow-lg p-6 border border-green-200 dark:border-green-900/50">
-          <h2 className="text-lg font-semibold text-green-900 dark:text-green-100 mb-4">API Cost Information</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <p className="text-sm font-medium text-green-800 dark:text-green-200 mb-2">GPT-4o-mini Pricing</p>
-              <ul className="text-xs text-green-700 dark:text-green-300 space-y-1">
-                <li>• Input: $0.15 / 1M tokens</li>
-                <li>• Output: $0.60 / 1M tokens</li>
-              </ul>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-green-800 dark:text-green-200 mb-2">Cost per Analysis</p>
-              <ul className="text-xs text-green-700 dark:text-green-300 space-y-1">
-                <li>• Small (500 msgs): ~$0.001</li>
-                <li>• Large (3000 msgs): ~$0.005</li>
-              </ul>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-green-800 dark:text-green-200 mb-2">Check Usage</p>
-              <a
-                href="https://platform.openai.com/account/usage/overview"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-green-600 dark:text-green-400 hover:underline"
-              >
-                View OpenAI Dashboard →
-              </a>
-              <p className="text-xs text-green-700 dark:text-green-300 mt-2">Real-time usage and billing</p>
-            </div>
-          </div>
-        </div>
 
         {/* Stats & Tools */}
         <div className="flex flex-col gap-4">
