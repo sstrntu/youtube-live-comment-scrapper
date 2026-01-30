@@ -3,7 +3,6 @@ import { identifyHost, flagHostMessages } from './hostDetection';
 import { extractHostQuestions, rankQuestionAnswerers } from './questionAnalysis';
 import { extractKeywords, clusterByTopic, calculateKeywordTrends } from './topicAnalysis';
 import { detectThreads, identifyActiveCommunityMembers, calculateStreamDuration } from './conversationThreading';
-import { analyzeTopicsWithAI } from './aiTopicAnalysis';
 
 /**
  * Main orchestrator for engagement analysis
@@ -38,16 +37,23 @@ export const analyzeEngagement = async (
   let topicClusters = clusterByTopic(messagesWithHost, keywords);
   let trendingKeywords = calculateKeywordTrends(messagesWithHost, keywords);
 
-  // Try to enhance with AI if API key is configured
+  // Try to enhance with AI via backend API
   try {
-    if (process.env.OPENAI_API_KEY) {
-      const aiAnalysis = await analyzeTopicsWithAI(messagesWithHost);
+    const aiResponse = await fetch('/api/analyze-topics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: messagesWithHost }),
+    });
+
+    if (aiResponse.ok) {
+      const aiAnalysis = await aiResponse.json();
       if (aiAnalysis.themes && aiAnalysis.themes.length > 0) {
         // Merge AI themes with keyword clusters for better results
         topicClusters = [
           ...aiAnalysis.themes.slice(0, 10), // Top AI themes
           ...topicClusters.slice(0, 5),      // Top keyword clusters
         ];
+        console.log('AI topic analysis successful, merged with keyword clusters');
       }
     }
   } catch (error) {
