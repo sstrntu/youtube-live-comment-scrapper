@@ -119,6 +119,75 @@ export const extractHostQuestions = (
 };
 
 /**
+ * Find answers to a specific question text
+ * Useful for filtering a specific host question
+ */
+export const findAnswersToSpecificQuestion = (
+  questionText: string,
+  messages: ChatMessage[],
+  hostName: string,
+  timeWindowSeconds: number = 120
+): {
+  question: HostQuestion;
+  answerCount: number;
+  topAnswerers: QuestionAnswerer[];
+} => {
+  // Find the message that matches the question (approximate match)
+  const questionMsg = messages.find(msg =>
+    msg.author === hostName &&
+    msg.message.toLowerCase().includes(questionText.toLowerCase())
+  );
+
+  if (!questionMsg) {
+    return {
+      question: {
+        messageId: '',
+        author: hostName,
+        question: questionText,
+        timestamp: new Date().toISOString(),
+        answers: [],
+        wasAnswered: false,
+      },
+      answerCount: 0,
+      topAnswerers: [],
+    };
+  }
+
+  const answers = findAnswers(
+    {
+      messageId: questionMsg.id,
+      author: questionMsg.author,
+      question: questionMsg.message,
+      timestamp: questionMsg.timestamp,
+      answers: [],
+      wasAnswered: false,
+    },
+    messages,
+    hostName,
+    timeWindowSeconds
+  );
+
+  // Create a temporary HostQuestion for scoring
+  const tempQuestion: HostQuestion = {
+    messageId: questionMsg.id,
+    author: questionMsg.author,
+    question: questionMsg.message,
+    timestamp: questionMsg.timestamp,
+    answers,
+    wasAnswered: answers.length > 0,
+  };
+
+  // Score the answerers
+  const answerers = rankQuestionAnswerers([tempQuestion], messages);
+
+  return {
+    question: tempQuestion,
+    answerCount: answers.length,
+    topAnswerers: answerers.slice(0, 10),
+  };
+};
+
+/**
  * Rank question answerers by helpfulness
  * Score based on: frequency, response time, answer quality
  */

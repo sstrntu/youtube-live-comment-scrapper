@@ -2,10 +2,11 @@
 
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
-import { ChatMessage, getVideoId, InsightData, EngagementAnalysis } from "../utils/youtube";
+import { ChatMessage, getVideoId, InsightData, EngagementAnalysis, HostQuestion } from "../utils/youtube";
 import { exportToCSV, exportToJSON } from "../utils/export";
 import { calculateInsights } from "../utils/analytics";
 import { analyzeEngagement } from "../utils/engagementAnalytics";
+import { findAnswersToSpecificQuestion } from "../utils/questionAnalysis";
 import InsightsPanel from "./components/InsightsPanel";
 import EngagementPanel from "./components/EngagementPanel";
 
@@ -30,6 +31,15 @@ export default function Home() {
   const [hostName, setHostName] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+
+  // Specific question filter state
+  const [specificQuestion, setSpecificQuestion] = useState("");
+  const [questionAnalysisResult, setQuestionAnalysisResult] = useState<{
+    question: HostQuestion;
+    answerCount: number;
+    topAnswerers: Array<{ author: string; profileImageUrl: string; questionsAnswered: number; averageResponseTime: number; helpfulnessScore: number }>;
+  } | null>(null);
+  const [showQuestionResults, setShowQuestionResults] = useState(false);
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const apiEventSourceRef = useRef<EventSource | null>(null);
@@ -433,6 +443,30 @@ export default function Home() {
     }
   };
 
+  const handleAnalyzeSpecificQuestion = () => {
+    if (!specificQuestion.trim()) {
+      setAnalysisError("Please enter a question");
+      return;
+    }
+
+    const allMessages = scrapingMethod === 'both' ? [...messages, ...apiMessages] : messages;
+    const hostToUse = hostName || engagementAnalysis?.hostName || "Unknown";
+
+    try {
+      const result = findAnswersToSpecificQuestion(
+        specificQuestion,
+        allMessages,
+        hostToUse
+      );
+      setQuestionAnalysisResult(result);
+      setShowQuestionResults(true);
+      setAnalysisError(null);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Analysis failed';
+      setAnalysisError(errorMessage);
+    }
+  };
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -689,6 +723,112 @@ export default function Home() {
               "Analyze Engagement"
             )}
           </button>
+        </div>
+
+        {/* Specific Question Filter */}
+        <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-lg p-6 space-y-4 border border-gray-100 dark:border-zinc-700">
+          <div>
+            <h2 className="text-lg font-semibold">Find Answers to Specific Question</h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              Filter and analyze responses to a particular host question
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="specificQuestion" className="block text-sm font-medium">
+              Enter Question
+            </label>
+            <input
+              id="specificQuestion"
+              type="text"
+              value={specificQuestion}
+              onChange={(e) => setSpecificQuestion(e.target.value)}
+              placeholder="e.g., What is your favorite team?"
+              className="w-full px-3 py-2 rounded border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Partial text match (e.g., "favorite" will find "What is your favorite team?")
+            </p>
+          </div>
+
+          <button
+            onClick={handleAnalyzeSpecificQuestion}
+            disabled={(scrapingMethod === 'both' ? messages.length + apiMessages.length : messages.length) === 0}
+            className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium rounded-lg transition-colors disabled:cursor-not-allowed"
+          >
+            Find Answers
+          </button>
+
+          {/* Specific Question Results */}
+          {showQuestionResults && questionAnalysisResult && (
+            <div className="mt-6 space-y-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-900/50">
+              <div>
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Question</h3>
+                <p className="text-sm text-gray-700 dark:text-gray-300 italic">"{questionAnalysisResult.question.question}"</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-white dark:bg-zinc-800 p-3 rounded">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Answers</p>
+                  <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{questionAnalysisResult.answerCount}</p>
+                </div>
+                <div className="bg-white dark:bg-zinc-800 p-3 rounded">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Answered</p>
+                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                    {questionAnalysisResult.question.wasAnswered ? '✓' : '✗'}
+                  </p>
+                </div>
+              </div>
+
+              {questionAnalysisResult.topAnswerers.length > 0 && (
+                <div>
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">Top Answerers</h3>
+                  <div className="space-y-2">
+                    {questionAnalysisResult.topAnswerers.map((answerer, idx) => (
+                      <div key={answerer.author} className="flex items-center gap-3 p-2 bg-white dark:bg-zinc-800 rounded">
+                        <span className="font-bold text-gray-500 dark:text-gray-400 text-sm min-w-[24px]">#{idx + 1}</span>
+                        <span className="font-medium text-sm text-gray-900 dark:text-gray-100 flex-1">{answerer.author}</span>
+                        <span className="text-xs text-gray-600 dark:text-gray-400">{Math.round(answerer.averageResponseTime)}s</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* API Cost Info */}
+        <div className="bg-green-50 dark:bg-green-900/20 rounded-xl shadow-lg p-6 border border-green-200 dark:border-green-900/50">
+          <h2 className="text-lg font-semibold text-green-900 dark:text-green-100 mb-4">API Cost Information</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <p className="text-sm font-medium text-green-800 dark:text-green-200 mb-2">GPT-4o-mini Pricing</p>
+              <ul className="text-xs text-green-700 dark:text-green-300 space-y-1">
+                <li>• Input: $0.15 / 1M tokens</li>
+                <li>• Output: $0.60 / 1M tokens</li>
+              </ul>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-green-800 dark:text-green-200 mb-2">Cost per Analysis</p>
+              <ul className="text-xs text-green-700 dark:text-green-300 space-y-1">
+                <li>• Small (500 msgs): ~$0.001</li>
+                <li>• Large (3000 msgs): ~$0.005</li>
+              </ul>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-green-800 dark:text-green-200 mb-2">Check Usage</p>
+              <a
+                href="https://platform.openai.com/account/usage/overview"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-green-600 dark:text-green-400 hover:underline"
+              >
+                View OpenAI Dashboard →
+              </a>
+              <p className="text-xs text-green-700 dark:text-green-300 mt-2">Real-time usage and billing</p>
+            </div>
+          </div>
         </div>
 
         {/* Stats & Tools */}
