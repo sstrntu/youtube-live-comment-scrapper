@@ -1,0 +1,19 @@
+services:
+  ytlive:
+    build: .
+    container_name: ytlive-scraper
+    restart: unless-stopped
+    networks:
+      - shared_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ytlive.rule=Host(`ytlive.turfmapp.com`)"
+      - "traefik.http.routers.ytlive.entrypoints=web-secure"
+      - "traefik.http.routers.ytlive.tls=true"
+      - "traefik.http.routers.ytlive.tls.certresolver=cloudflare"
+      - "traefik.http.services.ytlive.loadbalancer.server.port=3003"
+      - "traefik.docker.network=shared_network"
+
+networks:
+  shared_network:
+    external: true
