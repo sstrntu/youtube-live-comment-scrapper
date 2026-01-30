@@ -28,8 +28,6 @@ export default function Home() {
   const [engagementAnalysis, setEngagementAnalysis] = useState<EngagementAnalysis | null>(null);
   const [showEngagementPanel, setShowEngagementPanel] = useState(false);
   const [hostName, setHostName] = useState("");
-  const [useAITopics, setUseAITopics] = useState(false);
-  const [openAIKey, setOpenAIKey] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
 
@@ -420,10 +418,9 @@ export default function Home() {
         return;
       }
 
-      const analysis = analyzeEngagement(
+      const analysis = await analyzeEngagement(
         allMessages,
-        hostName || undefined,
-        useAITopics && openAIKey ? true : undefined
+        hostName || undefined
       );
 
       setEngagementAnalysis(analysis);
@@ -639,63 +636,35 @@ export default function Home() {
 
         {/* Engagement Analysis Settings */}
         <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-lg p-6 space-y-4 border border-gray-100 dark:border-zinc-700">
-          <h2 className="text-lg font-semibold">Community Engagement Analysis</h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Advanced analytics to identify question answerers, trending topics, active members, and conversation threads.
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label htmlFor="hostName" className="block text-sm font-medium">
-                Host Name (Optional)
-              </label>
-              <input
-                id="hostName"
-                type="text"
-                value={hostName}
-                onChange={(e) => setHostName(e.target.value)}
-                placeholder="e.g., Channel Owner"
-                disabled={isAnalyzing}
-                className="w-full px-3 py-2 rounded border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-sm focus:ring-2 focus:ring-orange-500 outline-none transition-all disabled:opacity-50"
-              />
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Leave empty for automatic detection by badges or message frequency
+          <div className="flex items-start justify-between">
+            <div>
+              <h2 className="text-lg font-semibold">Community Engagement Analysis</h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                Advanced analytics with AI-powered topic extraction using GPT-4o-mini
               </p>
             </div>
-
-            <div className="flex items-end">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={useAITopics}
-                  onChange={(e) => setUseAITopics(e.target.checked)}
-                  disabled={isAnalyzing}
-                  className="w-4 h-4 cursor-pointer"
-                />
-                <span className="text-sm font-medium">Use AI Topic Analysis</span>
-              </label>
+            <div className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full text-xs font-semibold">
+              ✓ AI Enabled
             </div>
           </div>
 
-          {useAITopics && (
-            <div className="space-y-2">
-              <label htmlFor="openAIKey" className="block text-sm font-medium">
-                OpenAI API Key
-              </label>
-              <input
-                id="openAIKey"
-                type="password"
-                value={openAIKey}
-                onChange={(e) => setOpenAIKey(e.target.value)}
-                placeholder="sk-..."
-                disabled={isAnalyzing}
-                className="w-full px-3 py-2 rounded border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-sm focus:ring-2 focus:ring-orange-500 outline-none transition-all disabled:opacity-50"
-              />
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Warning: AI analysis will incur API costs. Leave empty to use keyword analysis only.
-              </p>
-            </div>
-          )}
+          <div className="space-y-2">
+            <label htmlFor="hostName" className="block text-sm font-medium">
+              Host Name (Optional)
+            </label>
+            <input
+              id="hostName"
+              type="text"
+              value={hostName}
+              onChange={(e) => setHostName(e.target.value)}
+              placeholder="e.g., Channel Owner"
+              disabled={isAnalyzing}
+              className="w-full px-3 py-2 rounded border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-sm focus:ring-2 focus:ring-orange-500 outline-none transition-all disabled:opacity-50"
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Leave empty for automatic detection by badges or message frequency
+            </p>
+          </div>
 
           {analysisError && (
             <div className="p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg text-sm">
@@ -714,7 +683,7 @@ export default function Home() {
             {isAnalyzing ? (
               <span className="flex items-center justify-center gap-2">
                 <span className="animate-spin inline-flex h-4 w-4 rounded-full border-2 border-white border-t-transparent"></span>
-                Analyzing...
+                Analyzing with AI...
               </span>
             ) : (
               "Analyze Engagement"

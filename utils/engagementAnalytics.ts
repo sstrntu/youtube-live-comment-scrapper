@@ -3,16 +3,17 @@ import { identifyHost, flagHostMessages } from './hostDetection';
 import { extractHostQuestions, rankQuestionAnswerers } from './questionAnalysis';
 import { extractKeywords, clusterByTopic, calculateKeywordTrends } from './topicAnalysis';
 import { detectThreads, identifyActiveCommunityMembers, calculateStreamDuration } from './conversationThreading';
+import { analyzeTopicsWithAI } from './aiTopicAnalysis';
 
 /**
  * Main orchestrator for engagement analysis
  * Coordinates all sub-analyses and merges results
+ * Uses AI topic analysis if OpenAI API key is configured
  */
-export const analyzeEngagement = (
+export const analyzeEngagement = async (
   messages: ChatMessage[],
-  hostIdentifier?: string,
-  useAI?: boolean
-): EngagementAnalysis => {
+  hostIdentifier?: string
+): Promise<EngagementAnalysis> => {
   // Validate input
   if (messages.length === 0) {
     return createEmptyAnalysis();
@@ -32,10 +33,27 @@ export const analyzeEngagement = (
     answerersMap.set(qa.author, qa.questionsAnswered);
   });
 
-  // Step 3: Topic analysis
+  // Step 3: Topic analysis (with AI enhancement if available)
   const keywords = extractKeywords(messagesWithHost);
-  const topicClusters = clusterByTopic(messagesWithHost, keywords);
-  const trendingKeywords = calculateKeywordTrends(messagesWithHost, keywords);
+  let topicClusters = clusterByTopic(messagesWithHost, keywords);
+  let trendingKeywords = calculateKeywordTrends(messagesWithHost, keywords);
+
+  // Try to enhance with AI if API key is configured
+  try {
+    if (process.env.OPENAI_API_KEY) {
+      const aiAnalysis = await analyzeTopicsWithAI(messagesWithHost);
+      if (aiAnalysis.themes && aiAnalysis.themes.length > 0) {
+        // Merge AI themes with keyword clusters for better results
+        topicClusters = [
+          ...aiAnalysis.themes.slice(0, 10), // Top AI themes
+          ...topicClusters.slice(0, 5),      // Top keyword clusters
+        ];
+      }
+    }
+  } catch (error) {
+    // Log error but don't fail analysis - fall back to keyword-only results
+    console.warn('AI topic analysis failed, using keyword analysis:', error instanceof Error ? error.message : error);
+  }
 
   // Step 4: Conversation threading
   const conversationThreads = detectThreads(messagesWithHost);
